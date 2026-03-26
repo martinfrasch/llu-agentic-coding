@@ -5,6 +5,7 @@
 #
 # This sets up Claude Code CLI pointing at a self-hosted Qwen3-Coder-30B
 # model served via vLLM with native Anthropic API compatibility.
+# No Anthropic account or API key needed.
 
 set -euo pipefail
 
@@ -49,42 +50,76 @@ ensure_installed() {
 echo "[1/5] Checking and installing dependencies..."
 ensure_installed git git
 ensure_installed curl curl
-ensure_installed node nodejs || ensure_installed node node || true
 
-# Install Claude Code via npm
-if command -v node >/dev/null 2>&1; then
-    echo "  Node.js: $(node --version 2>&1)"
-else
-    echo "  Installing Node.js..."
-    if command -v apt-get >/dev/null 2>&1; then
+# Ensure Node.js is available
+if ! command -v node >/dev/null 2>&1; then
+    echo "  Node.js not found, installing..."
+    if command -v conda >/dev/null 2>&1; then
+        conda install -y -q -c conda-forge nodejs 2>&1 | tail -1
+    elif command -v apt-get >/dev/null 2>&1; then
         curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash - 2>/dev/null || \
             curl -fsSL https://deb.nodesource.com/setup_22.x | bash - 2>/dev/null || true
         sudo apt-get install -y -qq nodejs 2>/dev/null || apt-get install -y -qq nodejs 2>/dev/null || true
-    elif command -v conda >/dev/null 2>&1; then
-        conda install -y -q -c conda-forge nodejs 2>/dev/null || true
     fi
     if ! command -v node >/dev/null 2>&1; then
         echo "  ERROR: Could not install Node.js. Please install manually."
         exit 1
     fi
-    echo "  Node.js: $(node --version 2>&1)"
 fi
+echo "  Node.js: $(node --version 2>&1)"
+echo "  npm:     $(npm --version 2>&1)"
 
 # --- Step 2: Install Claude Code CLI ---
 echo ""
 echo "[2/5] Installing Claude Code CLI..."
-npm install -g @anthropic-ai/claude-code 2>&1 | tail -3
-if command -v claude >/dev/null 2>&1; then
-    echo "  Claude Code: $(claude --version 2>&1 | head -1)"
-else
-    # Try with npx path
-    export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
+
+# Try global install first, then user-prefix fallback
+INSTALL_LOG=$(mktemp)
+CLAUDE_INSTALLED=false
+
+# Attempt 1: global install
+if npm install -g @anthropic-ai/claude-code >"$INSTALL_LOG" 2>&1; then
     if command -v claude >/dev/null 2>&1; then
-        echo "  Claude Code: $(claude --version 2>&1 | head -1)"
-    else
-        echo "  WARNING: claude not found on PATH. Try: npx @anthropic-ai/claude-code"
+        CLAUDE_INSTALLED=true
     fi
 fi
+
+# Attempt 2: user-prefix install (if global failed or claude not on PATH)
+if [ "$CLAUDE_INSTALLED" = false ]; then
+    echo "  Global install failed or claude not on PATH, trying user install..."
+    mkdir -p "$HOME/.local"
+    if npm install --prefix "$HOME/.local" @anthropic-ai/claude-code >"$INSTALL_LOG" 2>&1; then
+        export PATH="$HOME/.local/bin:$PATH"
+        if command -v claude >/dev/null 2>&1; then
+            CLAUDE_INSTALLED=true
+        fi
+    fi
+fi
+
+# Attempt 3: npx as last resort
+if [ "$CLAUDE_INSTALLED" = false ]; then
+    echo "  User install also failed, trying npx..."
+    if npx --yes @anthropic-ai/claude-code --version >/dev/null 2>&1; then
+        echo "  Claude Code available via npx (run with: npx @anthropic-ai/claude-code)"
+        CLAUDE_INSTALLED=true
+    fi
+fi
+
+if [ "$CLAUDE_INSTALLED" = true ] && command -v claude >/dev/null 2>&1; then
+    echo "  Claude Code $(claude --version 2>&1 | head -1) installed."
+elif [ "$CLAUDE_INSTALLED" = true ]; then
+    echo "  Claude Code installed (available via npx)."
+else
+    echo ""
+    echo "  ERROR: Claude Code installation failed."
+    echo "  Install log:"
+    cat "$INSTALL_LOG"
+    echo ""
+    echo "  Try manually: npm install -g @anthropic-ai/claude-code"
+    rm -f "$INSTALL_LOG"
+    exit 1
+fi
+rm -f "$INSTALL_LOG"
 
 # --- Step 3: Configure git ---
 echo ""
@@ -112,10 +147,16 @@ echo "  Git user: $GIT_USER <$GIT_MAIL>"
 # --- Step 4: Configure Claude Code environment ---
 echo ""
 echo "[4/5] Setting up Claude Code environment..."
+
+# Find where claude was installed and ensure it's on PATH
+CLAUDE_DIR=$(dirname "$(command -v claude 2>/dev/null)" 2>/dev/null || echo "")
+
 ENV_FILE="$HOME/.llu_env"
 cat > "$ENV_FILE" << ENVEOF
 # LLU Class - Claude Code + Qwen3-Coder Environment
-export PATH="\$HOME/.local/bin:\$HOME/.npm-global/bin:/usr/local/bin:\$PATH"
+# No Anthropic account or API key needed — ANTHROPIC_API_KEY is a dummy value.
+# vLLM doesn't validate it; Claude Code just requires it to be set.
+export PATH="\$HOME/.local/bin:\$HOME/.npm-global/bin:/usr/local/bin:/opt/conda/bin:\$PATH"
 
 # Point Claude Code at in-cluster vLLM (Anthropic-compatible API)
 export ANTHROPIC_BASE_URL="$VLLM_URL"
@@ -139,26 +180,49 @@ fi
 source "$ENV_FILE"
 echo "  Environment written to $ENV_FILE"
 
-# --- Step 5: Smoke test ---
+# --- Step 5: Verify everything works ---
 echo ""
-echo "[5/5] Running smoke test..."
+echo "[5/5] Verifying installation..."
 
+# Check claude is on PATH
+ERRORS=0
+if command -v claude >/dev/null 2>&1; then
+    echo "  claude CLI:   $(claude --version 2>&1 | head -1)"
+else
+    echo "  ERROR: claude not found on PATH after install"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# Check endpoint
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
     "$VLLM_URL/health" 2>/dev/null) || HTTP_CODE="000"
 
 if [ "$HTTP_CODE" = "200" ]; then
     echo "  vLLM endpoint: OK ($VLLM_URL)"
 else
-    echo "  WARNING: vLLM returned HTTP $HTTP_CODE"
-    echo "           The model may still be loading. Try again in a few minutes."
+    echo "  WARNING: vLLM returned HTTP $HTTP_CODE (model may still be loading)"
 fi
 
-# Test Anthropic Messages API
+# Check model is available
 MODELS_RESPONSE=$(curl -s --max-time 10 "$VLLM_URL/v1/models" 2>/dev/null) || true
 if echo "$MODELS_RESPONSE" | grep -q "$MODEL_NAME"; then
-    echo "  Model:        $MODEL_NAME available"
+    echo "  Model:         $MODEL_NAME available"
 else
-    echo "  WARNING: Model $MODEL_NAME not found in endpoint response"
+    echo "  WARNING: Model $MODEL_NAME not found (vLLM may still be loading)"
+fi
+
+# Check env vars
+if [ -n "${ANTHROPIC_BASE_URL:-}" ]; then
+    echo "  ANTHROPIC_BASE_URL: $ANTHROPIC_BASE_URL"
+else
+    echo "  ERROR: ANTHROPIC_BASE_URL not set"
+    ERRORS=$((ERRORS + 1))
+fi
+
+if [ "$ERRORS" -gt 0 ]; then
+    echo ""
+    echo "  $ERRORS error(s) detected. Please fix before continuing."
+    exit 1
 fi
 
 # --- Done ---
@@ -174,4 +238,5 @@ echo ""
 echo "  Every new terminal, run: source ~/.bashrc"
 echo "  Claude Code uses Qwen3-Coder-30B via the"
 echo "  in-cluster vLLM Anthropic API."
+echo "  No Anthropic account or API key needed."
 echo "==========================================="
