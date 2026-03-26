@@ -1,8 +1,13 @@
 # LLU Agentic Coding
 
-Agentic coding environment for LLU class using [Aider](https://aider.chat) + GLM-4.7-Flash on NRP.
+Agentic coding environment for LLU class on NRP. Two setups available:
 
-## Quick Start
+| Setup | Agent | Model | Tool Calling | Best For |
+|-------|-------|-------|-------------|----------|
+| **Claude Code** (recommended) | Claude Code CLI | Qwen3-Coder-30B | Full agentic (file create/edit/run) | Rich coding experience |
+| **Aider** (fallback) | Aider CLI | GLM-4.7-Flash | Text-based (whole file edits) | Simpler, proven reliable |
+
+## Quick Start — Claude Code (recommended)
 
 1. Log in to **https://llu-jupyter.nrp-nautilus.io** with your institutional credentials
 2. Start a server (defaults: 0 GPUs, 4 cores, 16 GB RAM, Python image)
@@ -10,7 +15,7 @@ Agentic coding environment for LLU class using [Aider](https://aider.chat) + GLM
 4. Run:
 
 ```bash
-git clone https://github.com/martinfrasch/llu-agentic-coding.git /tmp/llu-setup && bash /tmp/llu-setup/student-setup.sh
+git clone https://github.com/martinfrasch/llu-agentic-coding.git /tmp/llu-setup && bash /tmp/llu-setup/student-setup-claude-code.sh
 ```
 
 5. Follow the prompts (enter your name and email for git)
@@ -20,8 +25,16 @@ git clone https://github.com/martinfrasch/llu-agentic-coding.git /tmp/llu-setup 
 ```bash
 source ~/.bashrc
 mkdir ~/my-project && cd ~/my-project && git init
-aider
+claude
 ```
+
+## Quick Start — Aider (fallback)
+
+```bash
+git clone https://github.com/martinfrasch/llu-agentic-coding.git /tmp/llu-setup && bash /tmp/llu-setup/student-setup.sh
+```
+
+Then: `source ~/.bashrc && mkdir ~/my-project && cd ~/my-project && git init && aider`
 
 > **Note:** This is a private repo. See [Access Options](#access-options) below for how to grant student access.
 
@@ -29,32 +42,18 @@ aider
 
 ### Option A: GitHub Collaborators (if students have GitHub accounts)
 
-Add each student as a collaborator:
-
 ```bash
 gh repo add-collaborator martinfrasch/llu-agentic-coding STUDENT_GITHUB_USERNAME
 ```
 
-Students then clone normally with their GitHub credentials:
-
-```bash
-git clone https://github.com/martinfrasch/llu-agentic-coding.git /tmp/llu-setup && bash /tmp/llu-setup/student-setup.sh
-```
-
 ### Option B: Deploy Key (if students don't have GitHub accounts)
-
-Generate a read-only deploy key and distribute it to students:
 
 **Instructor setup (one-time):**
 
 ```bash
-# Generate the key pair
 ssh-keygen -t ed25519 -C "llu-class-deploy" -f llu_deploy_key -N ""
-
-# Add public key to the repo (read-only)
 gh repo deploy-key add llu_deploy_key.pub -R martinfrasch/llu-agentic-coding --title "LLU student access"
-
-# Share llu_deploy_key (the private key) with students via secure channel
+# Share llu_deploy_key (private key) with students via secure channel
 ```
 
 **Student one-liner:**
@@ -63,45 +62,48 @@ gh repo deploy-key add llu_deploy_key.pub -R martinfrasch/llu-agentic-coding --t
 mkdir -p ~/.ssh && cat > ~/.ssh/llu_deploy << 'KEYEOF'
 PASTE_PRIVATE_KEY_HERE
 KEYEOF
-chmod 600 ~/.ssh/llu_deploy && GIT_SSH_COMMAND="ssh -i ~/.ssh/llu_deploy -o StrictHostKeyChecking=no" git clone git@github.com:martinfrasch/llu-agentic-coding.git /tmp/llu-setup && bash /tmp/llu-setup/student-setup.sh
+chmod 600 ~/.ssh/llu_deploy && GIT_SSH_COMMAND="ssh -i ~/.ssh/llu_deploy -o StrictHostKeyChecking=no" git clone git@github.com:martinfrasch/llu-agentic-coding.git /tmp/llu-setup && bash /tmp/llu-setup/student-setup-claude-code.sh
 ```
-
-The deploy key is read-only — students can clone but not push to this repo.
-
-## What This Sets Up
-
-| Component | Purpose |
-|-----------|---------|
-| **Aider** | CLI coding assistant — reads, edits, and creates files via LLM |
-| **GLM-4.7-Flash** | 30B-parameter MoE LLM on a dedicated A100 GPU (in-cluster) |
-| **Shell environment** | Pre-configured to connect Aider to the vLLM endpoint |
-| **jupyter-server-proxy** | View web apps in your browser via JupyterHub |
-
-The setup script automatically installs any missing dependencies (python3, pip, git, curl).
 
 ## Architecture
 
 ```
-Student Terminal → Aider CLI → vLLM (http://vllm-glm-flash:8000/v1) → GLM-4.7-Flash (A100)
+Claude Code setup:
+  Student Terminal → Claude Code CLI → vLLM Anthropic API → Qwen3-Coder-30B (A100)
+                                       http://vllm-qwen3-coder:8000/v1/messages
+
+Aider setup (fallback):
+  Student Terminal → Aider CLI → vLLM OpenAI API → GLM-4.7-Flash (A100)
+                                 http://vllm-glm-flash:8000/v1
 ```
 
-## Why Aider (not Claude Code)
+## How Claude Code Works With Open-Source Models
 
-This class uses **Aider** as the agentic coding harness, not Anthropic's Claude Code CLI. Here's why:
+Claude Code normally requires Anthropic's Claude models, but vLLM (v0.18+) natively implements the **Anthropic Messages API** at `/v1/messages`. This means Claude Code can talk directly to vLLM — no LiteLLM proxy needed.
 
-**Claude Code requires Anthropic-specific message protocols** — it sends and expects XML-structured tool calls (`<tool_use>`, `<tool_result>`) and Anthropic-specific message formatting. GLM-4.7-Flash (and other open-source models) do not produce correctly structured XML tool-call responses, which causes Claude Code's agentic loop to break with parse errors.
+The key is **Qwen3-Coder-30B-A3B-Instruct**, which has:
+- Native tool calling with a dedicated vLLM parser (`qwen3_coder`)
+- 256K context support (Claude Code needs large context for auto-compacting)
+- MoE efficiency (only 3B active params per token) — fast inference on a single A100
 
-**Aider works with any OpenAI-compatible endpoint** — it uses a simpler `edit_format: whole` approach where the model returns complete file contents in plain text. No XML tool-call protocol is needed, so it works reliably with GLM-4.7-Flash served via vLLM's OpenAI-compatible API.
-
-In short: Claude Code is tightly coupled to Anthropic's Claude models, while Aider is model-agnostic and works with our self-hosted open-source LLM.
+GLM-4.7-Flash cannot be used with Claude Code because its vLLM tool-call parser has multiple open bugs that cause tool calls to silently fail. See [research report](litellm-vllm-research.md) for details.
 
 ## Documentation
 
-- [Student Guide](student-guide.md) — full usage guide with examples, tips, and troubleshooting
+- [Claude Code Student Guide](student-guide-claude-code.md) — setup, usage, examples, troubleshooting
+- [Aider Student Guide](student-guide.md) — fallback setup with GLM-4.7-Flash
+- [Open Model Research](litellm-vllm-research.md) — technical analysis of LiteLLM, model options, tool-call reliability
 
 ## Infrastructure (instructor reference)
 
-- **Model**: `zai-org/GLM-4.7-Flash` (MIT license, 30B MoE, ~3.6B active params)
-- **Serving**: vLLM on NRP Nautilus (32 CPU / 256 Gi RAM / 1x A100-80GB)
+### Claude Code stack (primary)
+- **Model**: `Qwen/Qwen3-Coder-30B-A3B-Instruct` (Apache 2.0, 30B MoE, 3B active)
+- **Serving**: vLLM 0.18.0 on NRP Nautilus (32 CPU / 256Gi RAM / 1x A100-80GB)
+- **Endpoint**: `http://vllm-qwen3-coder.llu-jupyter.svc.cluster.local:8000`
+- **API**: Anthropic Messages API (native vLLM) + OpenAI API
+- **Tool parser**: `qwen3_coder`
+
+### Aider stack (fallback)
+- **Model**: `zai-org/GLM-4.7-Flash` (MIT, 30B MoE, 3.6B active)
 - **Endpoint**: `http://vllm-glm-flash.llu-jupyter.svc.cluster.local:8000/v1`
 - **Fallback**: NRP managed endpoint (`https://ellm.nrp-nautilus.io/v1`) with Qwen3
