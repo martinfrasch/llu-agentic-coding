@@ -165,15 +165,42 @@ source "$ENV_FILE"
 echo "  Environment written to $ENV_FILE and sourced in $SHELL_RC"
 
 # --- Step 6: Install jupyter-server-proxy for browser previews ---
+# jupyter-server-proxy must be installed into jupyter's own Python environment,
+# not the user's pip. On NRP JupyterHub this is /opt/conda/bin/pip.
 echo ""
-echo "[6/6] Installing jupyter-server-proxy..."
+echo "[6/6] Installing jupyter-server-proxy for browser previews..."
 if command -v jupyter >/dev/null 2>&1; then
-    $PIP_CMD install --quiet jupyter-server-proxy 2>&1 | tail -1
+    # Find the pip that belongs to jupyter's Python environment
+    JUPYTER_BIN=$(command -v jupyter)
+    JUPYTER_DIR=$(dirname "$JUPYTER_BIN")
+    JUPYTER_PIP=""
+    if [ -x "$JUPYTER_DIR/pip" ]; then
+        JUPYTER_PIP="$JUPYTER_DIR/pip"
+    elif [ -x "/opt/conda/bin/pip" ]; then
+        JUPYTER_PIP="/opt/conda/bin/pip"
+    else
+        JUPYTER_PIP="$PIP_CMD"
+    fi
+    echo "  Using pip: $JUPYTER_PIP"
+    $JUPYTER_PIP install --quiet jupyter-server-proxy 2>&1 | tail -1
     jupyter server extension enable jupyter_server_proxy 2>/dev/null || true
-    echo "  Installed. Restart your server once for browser previews to work:"
+    # Verify the extension is actually registered
+    if jupyter server extension list 2>&1 | grep -q "jupyter_server_proxy"; then
+        echo "  jupyter-server-proxy: installed and enabled"
+    else
+        echo "  WARNING: jupyter-server-proxy installed but not detected by jupyter."
+        echo "           Try manually: /opt/conda/bin/pip install jupyter-server-proxy"
+    fi
+    echo ""
+    echo "  *** IMPORTANT: Restart your server once for browser previews to work ***"
     echo "  File -> Hub Control Panel -> Stop My Server -> Start My Server"
+    echo ""
+    echo "  After restart, view your web apps at:"
+    echo "  https://llu-jupyter.nrp-nautilus.io/user/YOUR-USERNAME/proxy/PORT/"
+    echo "  (replace YOUR-USERNAME and PORT, e.g. 8080)"
 else
     echo "  Skipped (jupyter not found - not running on JupyterHub?)"
+    echo "  Browser previews require JupyterHub. You can still test with curl."
 fi
 
 # --- Smoke test ---
