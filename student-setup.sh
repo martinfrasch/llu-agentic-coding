@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # LLU Class - Agentic Coding Environment Setup
 # Run on your NRP JupyterHub terminal:
-#   curl -sSL https://raw.githubusercontent.com/martinfrasch/llu-agentic-coding/main/student-setup.sh | bash
+#   git clone https://github.com/martinfrasch/llu-agentic-coding.git /tmp/llu-setup && bash /tmp/llu-setup/student-setup.sh
 #
 # What it does:
 #   1. Checks and installs missing dependencies (python3, pip, git, curl)

@@ -10,7 +10,7 @@ Agentic coding environment for LLU class using [Aider](https://aider.chat) + GLM
 4. Run:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/martinfrasch/llu-agentic-coding/main/student-setup.sh | bash
+git clone https://github.com/martinfrasch/llu-agentic-coding.git /tmp/llu-setup && bash /tmp/llu-setup/student-setup.sh
 ```
 
 5. Follow the prompts (enter your name and email for git)
@@ -22,6 +22,8 @@ source ~/.bashrc
 mkdir ~/my-project && cd ~/my-project && git init
 aider
 ```
+
+> **Note:** This is a private repo. Students must be added as collaborators or the instructor must provide access before the clone will work.
 
 ## What This Sets Up
 
