@@ -23,7 +23,50 @@ mkdir ~/my-project && cd ~/my-project && git init
 aider
 ```
 
-> **Note:** This is a private repo. Students must be added as collaborators or the instructor must provide access before the clone will work.
+> **Note:** This is a private repo. See [Access Options](#access-options) below for how to grant student access.
+
+## Access Options
+
+### Option A: GitHub Collaborators (if students have GitHub accounts)
+
+Add each student as a collaborator:
+
+```bash
+gh repo add-collaborator martinfrasch/llu-agentic-coding STUDENT_GITHUB_USERNAME
+```
+
+Students then clone normally with their GitHub credentials:
+
+```bash
+git clone https://github.com/martinfrasch/llu-agentic-coding.git /tmp/llu-setup && bash /tmp/llu-setup/student-setup.sh
+```
+
+### Option B: Deploy Key (if students don't have GitHub accounts)
+
+Generate a read-only deploy key and distribute it to students:
+
+**Instructor setup (one-time):**
+
+```bash
+# Generate the key pair
+ssh-keygen -t ed25519 -C "llu-class-deploy" -f llu_deploy_key -N ""
+
+# Add public key to the repo (read-only)
+gh repo deploy-key add llu_deploy_key.pub -R martinfrasch/llu-agentic-coding --title "LLU student access"
+
+# Share llu_deploy_key (the private key) with students via secure channel
+```
+
+**Student one-liner:**
+
+```bash
+mkdir -p ~/.ssh && cat > ~/.ssh/llu_deploy << 'KEYEOF'
+PASTE_PRIVATE_KEY_HERE
+KEYEOF
+chmod 600 ~/.ssh/llu_deploy && GIT_SSH_COMMAND="ssh -i ~/.ssh/llu_deploy -o StrictHostKeyChecking=no" git clone git@github.com:martinfrasch/llu-agentic-coding.git /tmp/llu-setup && bash /tmp/llu-setup/student-setup.sh
+```
+
+The deploy key is read-only — students can clone but not push to this repo.
 
 ## What This Sets Up
 
