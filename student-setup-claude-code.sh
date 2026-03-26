@@ -170,6 +170,11 @@ export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODEL_NAME"
 
 # Convenience alias: launch claude with correct model (bypasses OAuth login)
 alias claude="ANTHROPIC_API_KEY=not-needed DISABLE_AUTOUPDATER=1 claude --model $MODEL_NAME"
+
+# Browser preview URL (if running on JupyterHub)
+if [ -n "\${JUPYTERHUB_USER:-}" ]; then
+    export LLU_PROXY_URL="https://llu-jupyter.nrp-nautilus.io/user/\${JUPYTERHUB_USER}/proxy"
+fi
 ENVEOF
 
 # Add to .bashrc if not already there
@@ -229,6 +234,12 @@ if [ "$ERRORS" -gt 0 ]; then
     exit 1
 fi
 
+# --- Build proxy URL for browser preview ---
+PROXY_BASE=""
+if [ -n "${JUPYTERHUB_USER:-}" ]; then
+    PROXY_BASE="https://llu-jupyter.nrp-nautilus.io/user/${JUPYTERHUB_USER}/proxy"
+fi
+
 # --- Done ---
 echo ""
 echo "==========================================="
@@ -243,4 +254,17 @@ echo "  Every new terminal, run: source ~/.bashrc"
 echo "  Then just type 'claude' — the alias handles"
 echo "  model selection and skips Anthropic login."
 echo "  No Anthropic account or API key needed."
+if [ -n "$PROXY_BASE" ]; then
+    echo ""
+    echo "  ┌─────────────────────────────────────────┐"
+    echo "  │  BROWSER PREVIEW (open this tab now!)    │"
+    echo "  │                                          │"
+    echo "  │  ${PROXY_BASE}/8080/  │"
+    echo "  └─────────────────────────────────────────┘"
+    echo ""
+    echo "  Open the URL above in a new browser tab."
+    echo "  When your Flask app runs on port 8080,"
+    echo "  just switch to that tab to see it live."
+    echo "  (For other ports, change 8080 in the URL.)"
+fi
 echo "==========================================="
