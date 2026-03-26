@@ -81,7 +81,8 @@ Aider setup (fallback):
 
 Claude Code normally requires Anthropic's Claude models and an Anthropic API key. This setup requires **neither**:
 
-- **No Anthropic account or API key needed.** The setup script sets `ANTHROPIC_API_KEY="not-needed"` — a dummy value. Claude Code CLI requires this env var to be set (it won't start without it), but our vLLM server doesn't validate API keys. No cost, no Anthropic subscription.
+- **No Anthropic account or API key needed.** The setup script sets `ANTHROPIC_API_KEY="not-needed"` — a dummy value that satisfies Claude Code's startup check. Our vLLM server doesn't validate API keys. No cost, no Anthropic subscription.
+- **No OAuth login needed.** Claude Code v2.1+ tries to open a browser for Anthropic OAuth login by default. The setup script creates a shell alias that bypasses this: `ANTHROPIC_API_KEY=not-needed DISABLE_AUTOUPDATER=1 claude --model qwen3-coder`. Students just type `claude` and it works.
 - **No LiteLLM proxy needed.** vLLM (v0.18+) natively implements the Anthropic Messages API at `/v1/messages`. Claude Code talks directly to vLLM and doesn't know it's hitting an open-source model.
 
 The key is **Qwen3-Coder-30B-A3B-Instruct**, which has:

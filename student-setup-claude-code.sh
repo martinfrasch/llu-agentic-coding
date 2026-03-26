@@ -161,11 +161,15 @@ export PATH="\$HOME/.local/bin:\$HOME/.npm-global/bin:/usr/local/bin:/opt/conda/
 # Point Claude Code at in-cluster vLLM (Anthropic-compatible API)
 export ANTHROPIC_BASE_URL="$VLLM_URL"
 export ANTHROPIC_API_KEY="not-needed"
+export DISABLE_AUTOUPDATER=1
 
 # Map all Claude model slots to our Qwen3-Coder
 export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODEL_NAME"
 export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODEL_NAME"
 export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODEL_NAME"
+
+# Convenience alias: launch claude with correct model (bypasses OAuth login)
+alias claude="ANTHROPIC_API_KEY=not-needed DISABLE_AUTOUPDATER=1 claude --model $MODEL_NAME"
 ENVEOF
 
 # Add to .bashrc if not already there
@@ -236,7 +240,7 @@ echo "    mkdir ~/my-project && cd ~/my-project && git init"
 echo "    claude"
 echo ""
 echo "  Every new terminal, run: source ~/.bashrc"
-echo "  Claude Code uses Qwen3-Coder-30B via the"
-echo "  in-cluster vLLM Anthropic API."
+echo "  Then just type 'claude' — the alias handles"
+echo "  model selection and skips Anthropic login."
 echo "  No Anthropic account or API key needed."
 echo "==========================================="
