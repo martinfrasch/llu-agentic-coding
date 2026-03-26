@@ -79,7 +79,10 @@ Aider setup (fallback):
 
 ## How Claude Code Works With Open-Source Models
 
-Claude Code normally requires Anthropic's Claude models, but vLLM (v0.18+) natively implements the **Anthropic Messages API** at `/v1/messages`. This means Claude Code can talk directly to vLLM — no LiteLLM proxy needed.
+Claude Code normally requires Anthropic's Claude models and an Anthropic API key. This setup requires **neither**:
+
+- **No Anthropic account or API key needed.** The setup script sets `ANTHROPIC_API_KEY="not-needed"` — a dummy value. Claude Code CLI requires this env var to be set (it won't start without it), but our vLLM server doesn't validate API keys. No cost, no Anthropic subscription.
+- **No LiteLLM proxy needed.** vLLM (v0.18+) natively implements the Anthropic Messages API at `/v1/messages`. Claude Code talks directly to vLLM and doesn't know it's hitting an open-source model.
 
 The key is **Qwen3-Coder-30B-A3B-Instruct**, which has:
 - Native tool calling with a dedicated vLLM parser (`qwen3_coder`)
