@@ -144,16 +144,22 @@ flask run --host=0.0.0.0 --port=8080
 3. Open your app in the browser using the JupyterHub proxy URL:
 
 ```
-https://llu-jupyter.nrp-nautilus.io/user/YOUR-JUPYTERHUB-ID/proxy/PORT/
+https://llu-jupyter.nrp-nautilus.io/user/YOUR-EMAIL/proxy/8080/
 ```
 
-**Finding your JupyterHub ID:** Look at your terminal prompt — it shows `jovyan@jupyter-YOUR-ID-HERE:~$`. Copy the part after `jupyter-`. Your ID is your email with `@` and `.` replaced by `-` plus a hash suffix. **Do not use your raw email** (e.g., `user/name@school.edu/`) — it won't work.
+Use your **email as shown in the JupyterLab URL bar** — for example:
+`https://llu-jupyter.nrp-nautilus.io/user/jdoe@uw.edu/proxy/8080/`
 
-Example: `https://llu-jupyter.nrp-nautilus.io/user/jdoe-uw-edu---abc123/proxy/8080/`
+**Tip:** Look at your browser's URL bar while in JupyterLab — the part after `/user/` is exactly what you need.
 
-**If you get 404:** `jupyter-server-proxy` may not be active. Restart your server: File → Hub Control Panel → Stop My Server → Start My Server.
+**Use port 8080** (not 5000) to avoid conflicts with other JupyterHub processes.
 
 4. To stop the server, go back to the terminal and press **Ctrl-C**.
+
+**Common issues:**
+- **404 Not Found**: `jupyter-server-proxy` not active — restart your server (File → Hub Control Panel → Stop → Start)
+- **504 Gateway Timeout**: App not running or not bound to `0.0.0.0` — restart with `--host=0.0.0.0`
+- **Address already in use**: Kill old process: `pkill -f "flask run"`, wait 2 seconds, try again
 
 ### Testing with curl
 
