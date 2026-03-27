@@ -141,13 +141,17 @@ cd ~/my-project
 flask run --host=0.0.0.0 --port=8080
 ```
 
-3. Open this URL in your browser (replace `YOUR-USERNAME` with the part after `/user/` in your JupyterHub URL):
+3. Open your app in the browser using the JupyterHub proxy URL:
 
 ```
-https://llu-jupyter.nrp-nautilus.io/user/YOUR-USERNAME/proxy/8080/
+https://llu-jupyter.nrp-nautilus.io/user/YOUR-JUPYTERHUB-ID/proxy/PORT/
 ```
 
-For example: `https://llu-jupyter.nrp-nautilus.io/user/jdoe-uw-edu---abc123/proxy/8080/`
+**Finding your JupyterHub ID:** Look at your terminal prompt — it shows `jovyan@jupyter-YOUR-ID-HERE:~$`. Copy the part after `jupyter-`. Your ID is your email with `@` and `.` replaced by `-` plus a hash suffix. **Do not use your raw email** (e.g., `user/name@school.edu/`) — it won't work.
+
+Example: `https://llu-jupyter.nrp-nautilus.io/user/jdoe-uw-edu---abc123/proxy/8080/`
+
+**If you get 404:** `jupyter-server-proxy` may not be active. Restart your server: File → Hub Control Panel → Stop My Server → Start My Server.
 
 4. To stop the server, go back to the terminal and press **Ctrl-C**.
 
