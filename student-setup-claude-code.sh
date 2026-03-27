@@ -189,9 +189,39 @@ fi
 source "$ENV_FILE"
 echo "  Environment written to $ENV_FILE"
 
-# --- Step 5: Verify everything works ---
+# --- Step 5: Install jupyter-server-proxy for browser previews ---
 echo ""
-echo "[5/5] Verifying installation..."
+echo "[5/6] Installing jupyter-server-proxy for browser previews..."
+if command -v jupyter >/dev/null 2>&1; then
+    JUPYTER_DIR=$(dirname "$(command -v jupyter)")
+    JUPYTER_PIP=""
+    if [ -x "$JUPYTER_DIR/pip" ]; then
+        JUPYTER_PIP="$JUPYTER_DIR/pip"
+    elif [ -x "/opt/conda/bin/pip" ]; then
+        JUPYTER_PIP="/opt/conda/bin/pip"
+    fi
+
+    if [ -n "$JUPYTER_PIP" ]; then
+        $JUPYTER_PIP install --quiet jupyter-server-proxy 2>&1 | tail -1
+        jupyter server extension enable jupyter_server_proxy 2>/dev/null || true
+        if jupyter server extension list 2>&1 | grep -q "jupyter_server_proxy"; then
+            echo "  jupyter-server-proxy: installed and enabled"
+        else
+            echo "  WARNING: installed but not detected — try restarting your server"
+        fi
+    else
+        echo "  WARNING: could not find jupyter's pip"
+    fi
+    echo ""
+    echo "  *** Restart your server once for browser previews to work ***"
+    echo "  File -> Hub Control Panel -> Stop My Server -> Start My Server"
+else
+    echo "  Skipped (jupyter not found)"
+fi
+
+# --- Step 6: Verify everything works ---
+echo ""
+echo "[6/6] Verifying installation..."
 
 # Check claude is on PATH
 ERRORS=0
