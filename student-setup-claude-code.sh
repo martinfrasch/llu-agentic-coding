@@ -212,24 +212,36 @@ if command -v jupyter >/dev/null 2>&1; then
     fi
 
     if [ -n "$JUPYTER_PIP" ]; then
-        # Install now for current session
-        $JUPYTER_PIP install --quiet jupyter-server-proxy 2>&1 | tail -1
-        jupyter server extension enable jupyter_server_proxy 2>/dev/null || true
+        # Install into conda env (NOT --user, which jupyter can't see)
+        $JUPYTER_PIP install jupyter-server-proxy 2>&1 | tail -3
+        jupyter server extension enable jupyter_server_proxy 2>&1 | tail -2
+
+        # Verify it's visible to jupyter
+        if jupyter server extension list 2>&1 | grep -q "jupyter_server_proxy"; then
+            echo "  jupyter-server-proxy: installed and visible to jupyter"
+        else
+            echo "  WARNING: installed but jupyter can't see it"
+            echo "  This may mean pip installed to ~/.local instead of /opt/conda"
+            echo "  Try: sudo /opt/conda/bin/pip install jupyter-server-proxy"
+        fi
 
         # Create startup hook so it survives server restarts
         # (~/.jupyter persists on the PVC, /opt/conda does not)
         mkdir -p ~/.jupyter
-        cat > ~/.jupyter/jupyter_server_config.py << JUPEOF
+        cat > ~/.jupyter/jupyter_server_config.py << 'JUPEOF'
 # Auto-install jupyter-server-proxy on every server start
 # (needed because /opt/conda is ephemeral on JupyterHub)
-import subprocess, sys
+import subprocess
 subprocess.run(
-    ["$JUPYTER_PIP", "install", "-q", "jupyter-server-proxy"],
+    ["/opt/conda/bin/pip", "install", "-q", "jupyter-server-proxy"],
+    check=False, capture_output=True
+)
+subprocess.run(
+    ["jupyter", "server", "extension", "enable", "jupyter_server_proxy"],
     check=False, capture_output=True
 )
 JUPEOF
-        echo "  jupyter-server-proxy: installed"
-        echo "  Startup hook: ~/.jupyter/jupyter_server_config.py (auto-reinstalls on restart)"
+        echo "  Startup hook: ~/.jupyter/jupyter_server_config.py"
     else
         echo "  WARNING: could not find jupyter's pip"
     fi
