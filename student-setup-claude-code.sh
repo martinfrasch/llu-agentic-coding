@@ -121,9 +121,28 @@ else
 fi
 rm -f "$INSTALL_LOG"
 
-# --- Step 3: Configure git ---
+# --- Step 3: Bypass Claude Code OAuth login ---
+# Claude Code v2.1+ requires OAuth login for interactive mode even with
+# ANTHROPIC_API_KEY set. Pre-seeding ~/.claude.json skips this entirely.
+# See: https://github.com/anthropics/claude-code/issues/27900
 echo ""
-echo "[3/5] Configuring git..."
+echo "[3/7] Configuring Claude Code auth bypass..."
+mkdir -p ~/.claude
+cat > ~/.claude.json << 'AUTHEOF'
+{
+  "hasCompletedOnboarding": true,
+  "primaryApiKey": "not-needed",
+  "customApiKeyResponses": {
+    "approved": ["not-needed"],
+    "rejected": []
+  }
+}
+AUTHEOF
+echo "  Auth bypass configured (~/.claude.json)"
+
+# --- Step 4: Configure git ---
+echo ""
+echo "[4/7] Configuring git..."
 if [ -z "$(git config --global user.name 2>/dev/null)" ]; then
     if [ -t 0 ]; then
         read -rp "  Enter your name (for git commits): " GIT_NAME
@@ -146,7 +165,7 @@ echo "  Git user: $GIT_USER <$GIT_MAIL>"
 
 # --- Step 4: Configure Claude Code environment ---
 echo ""
-echo "[4/5] Setting up Claude Code environment..."
+echo "[5/7] Setting up Claude Code environment..."
 
 # Find where claude was installed and ensure it's on PATH
 CLAUDE_DIR=$(dirname "$(command -v claude 2>/dev/null)" 2>/dev/null || echo "")
@@ -191,7 +210,7 @@ echo "  Environment written to $ENV_FILE"
 
 # --- Step 5: Install jupyter-server-proxy for browser previews ---
 echo ""
-echo "[5/6] Installing jupyter-server-proxy for browser previews..."
+echo "[6/7] Installing jupyter-server-proxy for browser previews..."
 if command -v jupyter >/dev/null 2>&1; then
     JUPYTER_DIR=$(dirname "$(command -v jupyter)")
     JUPYTER_PIP=""
@@ -221,7 +240,7 @@ fi
 
 # --- Step 6: Verify everything works ---
 echo ""
-echo "[6/6] Verifying installation..."
+echo "[7/7] Verifying installation..."
 
 # Check claude is on PATH
 ERRORS=0
