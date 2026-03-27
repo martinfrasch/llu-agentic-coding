@@ -33,7 +33,7 @@ cd your-project
 claude
 ```
 
-The `claude` command is aliased by the setup to automatically use the Qwen3-Coder model and skip Anthropic's OAuth login. You don't need an Anthropic account.
+No Anthropic account needed — the setup script pre-configures authentication to use the in-cluster model.
 
 If you don't have a project yet:
 
@@ -43,8 +43,7 @@ mkdir ~/my-project && cd ~/my-project && git init
 claude
 ```
 
-> **Note:** If `claude` tries to open a browser for login, your alias didn't load. Run `source ~/.bashrc` first, or launch manually with:
-> `ANTHROPIC_API_KEY=not-needed DISABLE_AUTOUPDATER=1 claude --model qwen3-coder`
+> **Note:** If `claude` shows "Not logged in" or tries to open a browser, run `source ~/.bashrc` first. If the problem persists, re-run the setup script.
 
 ## Model info
 

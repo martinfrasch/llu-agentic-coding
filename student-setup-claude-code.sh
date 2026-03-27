@@ -124,20 +124,12 @@ rm -f "$INSTALL_LOG"
 # --- Step 3: Bypass Claude Code OAuth login ---
 # Claude Code v2.1+ requires OAuth login for interactive mode even with
 # ANTHROPIC_API_KEY set. Pre-seeding ~/.claude.json skips this entirely.
+# Uses echo (not heredoc) to avoid indentation/whitespace issues.
 # See: https://github.com/anthropics/claude-code/issues/27900
 echo ""
 echo "[3/7] Configuring Claude Code auth bypass..."
 mkdir -p ~/.claude
-cat > ~/.claude.json << 'AUTHEOF'
-{
-  "hasCompletedOnboarding": true,
-  "primaryApiKey": "not-needed",
-  "customApiKeyResponses": {
-    "approved": ["not-needed"],
-    "rejected": []
-  }
-}
-AUTHEOF
+echo '{"hasCompletedOnboarding":true,"primaryApiKey":"not-needed","customApiKeyResponses":{"approved":["not-needed"],"rejected":[]}}' > ~/.claude.json
 echo "  Auth bypass configured (~/.claude.json)"
 
 # --- Step 4: Configure git ---
@@ -186,9 +178,6 @@ export DISABLE_AUTOUPDATER=1
 export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODEL_NAME"
 export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODEL_NAME"
 export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODEL_NAME"
-
-# Convenience alias: launch claude with correct model (bypasses OAuth login)
-alias claude="ANTHROPIC_API_KEY=not-needed DISABLE_AUTOUPDATER=1 claude --model $MODEL_NAME"
 
 # Browser preview URL (if running on JupyterHub)
 if [ -n "\${JUPYTERHUB_USER:-}" ]; then
@@ -300,8 +289,7 @@ echo "    mkdir ~/my-project && cd ~/my-project && git init"
 echo "    claude"
 echo ""
 echo "  Every new terminal, run: source ~/.bashrc"
-echo "  Then just type 'claude' — the alias handles"
-echo "  model selection and skips Anthropic login."
+echo "  Then just type 'claude' — no login needed."
 echo "  No Anthropic account or API key needed."
 if [ -n "$PROXY_BASE" ]; then
     echo ""
