@@ -51,12 +51,33 @@ claude
 
 | Property | Value |
 |----------|-------|
-| Model | Qwen3-Coder-30B-A3B-Instruct |
-| Architecture | 30B MoE (3B active params per token) |
+| Model (primary) | Qwen3-Coder-30B-A3B-Instruct |
+| Model (fallback) | Qwen3.5-397B via NRP shared Envoy |
+| Architecture | 30B MoE (3B active) / 397B MoE (17B active) |
 | Context | 65K tokens |
-| Endpoint | `http://vllm-qwen3-coder:8000` (in-cluster, no auth needed) |
-| API | Anthropic Messages API (native vLLM support) |
+| Endpoint (primary) | `http://vllm-qwen3-coder:8000` (in-cluster, no auth needed) |
+| Endpoint (fallback) | `http://qwen-proxy:4000` (in-cluster, no auth needed) |
+| API | Anthropic Messages API |
 | Tool calling | Yes — full agentic file creation, editing, commands |
+
+### Switching to the fallback endpoint
+
+If the primary model is unavailable (timeout errors, connection refused), switch to the fallback:
+
+```bash
+sed -i 's|http://vllm-qwen3-coder:8000|http://qwen-proxy:4000|' ~/.llu_env
+source ~/.bashrc
+claude
+```
+
+To switch back when the primary is restored:
+
+```bash
+sed -i 's|http://qwen-proxy:4000|http://vllm-qwen3-coder:8000|' ~/.llu_env
+source ~/.bashrc
+```
+
+The fallback uses a larger model (Qwen3.5-397B) on shared NRP infrastructure. You'll notice a **5–15 second pause** before responses start streaming — this is the model's internal reasoning step and is normal.
 
 ## What Claude Code can do
 
@@ -187,11 +208,12 @@ aider --model openai/glm-4.7-flash --no-show-model-warnings --no-auto-commits
 
 | Problem | Fix |
 |---------|-----|
-| `command not found: claude` | Run `source ~/.bashrc`. If still missing: `npm install -g @anthropic-ai/claude-code` |
+| `command not found: claude` | Run `source ~/.bashrc`. If still missing: `npm install -g --prefix="$HOME/.local" @anthropic-ai/claude-code && source ~/.bashrc` |
 | "Not logged in" / browser opens | Run `source ~/.bashrc` first. If persists, re-run the setup script to recreate `~/.claude.json` |
-| Claude hangs after sending message | Check `curl http://vllm-qwen3-coder:8000/health` — if no response, the model may be loading (notify instructor) |
-| "Connection refused" | The vLLM service may be down. Try the Aider fallback above |
+| Claude hangs / timeout errors | Primary model may be down. Switch to fallback: `sed -i 's\|http://vllm-qwen3-coder:8000\|http://qwen-proxy:4000\|' ~/.llu_env && source ~/.bashrc` |
+| "Connection refused" | vLLM service down. Switch to fallback (see above) or try the Aider fallback |
+| Long pause before response (fallback) | Normal — Qwen3.5-397B thinks for 5–15 seconds before responding. Wait for it. |
 | Model gives poor results | Try being more specific, or start a new session with `claude` |
-| `claude` lost after server restart | `source ~/.bashrc` — npm global installs persist in `/home/jovyan` |
+| `claude` lost after server restart | `npm install -g --prefix="$HOME/.local" @anthropic-ai/claude-code && source ~/.bashrc` |
 | Browser preview 404 | Restart server to activate jupyter-server-proxy |
 | Browser preview 504 | App not running or not bound to `0.0.0.0` |
