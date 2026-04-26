@@ -174,6 +174,12 @@ export ANTHROPIC_BASE_URL="$VLLM_URL"
 export ANTHROPIC_API_KEY="not-needed"
 export DISABLE_AUTOUPDATER=1
 
+# Context budget: vLLM serves 128K tokens. Claude Code reserves output tokens
+# from that budget. Default is 32K, which leaves only ~96K for input — and
+# previously caused 500 errors on the old 64K endpoint. Capping at 8K returns
+# ~24K of headroom; raise if you hit "max output tokens" truncation.
+export CLAUDE_CODE_MAX_OUTPUT_TOKENS=8192
+
 # Map all Claude model slots to our Qwen3-Coder
 export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODEL_NAME"
 export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODEL_NAME"

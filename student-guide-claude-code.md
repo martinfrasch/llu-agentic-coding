@@ -54,7 +54,7 @@ claude
 | Model (primary) | Qwen3-Coder-30B-A3B-Instruct |
 | Model (fallback) | Qwen3.5-397B via NRP shared Envoy |
 | Architecture | 30B MoE (3B active) / 397B MoE (17B active) |
-| Context | 65K tokens |
+| Context | 128K tokens (output capped at 8K, ~120K available for input) |
 | Endpoint (primary) | `http://vllm-qwen3-coder:8000` (in-cluster, no auth needed) |
 | Endpoint (fallback) | `http://qwen-proxy:4000` (in-cluster, no auth needed) |
 | API | Anthropic Messages API |
@@ -187,7 +187,7 @@ Your JupyterHub server will automatically shut down after **3 days of inactivity
 
 - **Qwen3-Coder-30B** is a strong coding model with native tool calling. It handles file creation, editing, and multi-step tasks well.
 - **Response time** is typically 2-5 seconds for short responses, longer for complex multi-file operations.
-- **Context window** is 65K tokens — enough for most projects, but very large codebases may need you to be selective about which files you reference.
+- **Context window** is 128K tokens, with output capped at 8K so you have ~120K for input. Plenty of headroom for most projects; very large codebases may still need you to be selective about which files you reference.
 - The model runs on a dedicated A100 GPU shared by all students. During peak usage, responses may be slower.
 
 ## Switching to Aider (fallback)
@@ -208,6 +208,7 @@ aider --model openai/glm-4.7-flash --no-show-model-warnings --no-auto-commits
 
 | Problem | Fix |
 |---------|-----|
+| `500 ... maximum context length is X tokens` | Your conversation has grown past the context budget. `/clear` to start fresh, `/compact` to summarize, or read files in slices instead of whole. The setup script sets `CLAUDE_CODE_MAX_OUTPUT_TOKENS=8192` to claw back input headroom — re-run `source ~/.bashrc` if you don't see it set (`echo $CLAUDE_CODE_MAX_OUTPUT_TOKENS`). |
 | `command not found: claude` | Run `source ~/.bashrc`. If still missing: `npm install -g --prefix="$HOME/.local" @anthropic-ai/claude-code && source ~/.bashrc` |
 | "Not logged in" / browser opens | Run `source ~/.bashrc` first. If persists, re-run the setup script to recreate `~/.claude.json` |
 | Claude hangs / timeout errors | Primary model may be down. Switch to fallback: `sed -i 's\|http://vllm-qwen3-coder:8000\|http://qwen-proxy:4000\|' ~/.llu_env && source ~/.bashrc` |
